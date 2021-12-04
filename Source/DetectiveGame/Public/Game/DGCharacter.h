@@ -14,11 +14,15 @@ class UStaticMeshComponent;
 class UBoxComponent;
 class ADGBrowseableActor;
 class UDGInventoryComponent;
+class UDGPlaceObject;
+class IDGInvestigationSubject;
 
 UCLASS()
 class DETECTIVEGAME_API ADGCharacter : public ACharacter, public IDGBrowser, public IDGSuspect
 {
 	GENERATED_BODY()
+
+	friend class UDGEntriesManager;
 
 public:
 
@@ -46,6 +50,10 @@ public:
 protected:
 
 	virtual void BeginPlay() override;
+
+	void OnNewEntriesDiscovered(UDGEntriesManager* InEntriesManager, const TScriptInterface<IDGInvestigationSubject> InNewEntry);
+
+private:
 
 	UFUNCTION()
 	void MoveForward_Input(float value);

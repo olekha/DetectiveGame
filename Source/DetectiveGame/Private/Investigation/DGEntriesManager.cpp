@@ -8,6 +8,8 @@
 #include "DGPlace.h"
 #include "DGQuestion.h"
 #include "DGGameInstance.h"
+#include "DGCharacter.h"
+#include "GameFramework/PlayerController.h"
 
 bool UDGEntriesManager::IsQuestionInfoValid(const FDGInvestigationQuestionInfo& InQuestionInfo)
 {
@@ -21,46 +23,48 @@ bool UDGEntriesManager::IsSuspectInfoValid(const FDGInvestigationSuspectInfo& In
 	return InQuestionInfo.InvestigationSuspect != nullptr;
 }
 
-void UDGEntriesManager::DiscoverNewEntry(TSubclassOf<UObject> InvestigationEntry)
+void UDGEntriesManager::DiscoverNewEntry(TSubclassOf<UObject> InNewEntry)
 {
-	if (InvestigationEntry == nullptr
-		|| !InvestigationEntry->ImplementsInterface(UDGInvestigationSubject::StaticClass())
-		|| IsEntryDiscoveredAlready(InvestigationEntry))
+	if (InNewEntry == nullptr
+		|| !InNewEntry->ImplementsInterface(UDGInvestigationSubject::StaticClass())
+		|| IsEntryDiscoveredAlready(InNewEntry))
 	{
 		return;
 	}
 
-	if(InvestigationEntry->ImplementsInterface(UDGEvent::StaticClass()))
+	if(InNewEntry->ImplementsInterface(UDGEvent::StaticClass()))
 	{
-		DiscoveredEvents.AddUnique(InvestigationEntry);
+		DiscoveredEvents.AddUnique(InNewEntry);
 	}
 
-	if (InvestigationEntry->ImplementsInterface(UDGPerson::StaticClass()))
+	if (InNewEntry->ImplementsInterface(UDGPerson::StaticClass()))
 	{
-		DiscoveredPersons.AddUnique(InvestigationEntry);
+		DiscoveredPersons.AddUnique(InNewEntry);
 	}
 
-	if (InvestigationEntry->ImplementsInterface(UDGPlace::StaticClass()))
+	if (InNewEntry->ImplementsInterface(UDGPlace::StaticClass()))
 	{
-		DiscoveredPlaces.AddUnique(InvestigationEntry);
+		DiscoveredPlaces.AddUnique(InNewEntry);
 	}
+
+	OnNewEntriesDiscovered(InNewEntry);
 }
 
-bool UDGEntriesManager::IsEntryDiscoveredAlready(TSubclassOf<UObject> InvestigationEntry) const
+bool UDGEntriesManager::IsEntryDiscoveredAlready(TSubclassOf<UObject> InEntry) const
 {
-	if (InvestigationEntry != nullptr)
+	if (InEntry != nullptr)
 	{
-		if (DiscoveredEvents.Contains(InvestigationEntry))
+		if (DiscoveredEvents.Contains(InEntry))
 		{
 			return true;
 		}
 
-		if (DiscoveredPersons.Contains(InvestigationEntry))
+		if (DiscoveredPersons.Contains(InEntry))
 		{
 			return true;
 		}	
 		
-		if (DiscoveredPlaces.Contains(InvestigationEntry))
+		if (DiscoveredPlaces.Contains(InEntry))
 		{
 			return true;
 		}
@@ -234,4 +238,28 @@ const TArray<FDGInvestigationSuspectInfo>* UDGEntriesManager::GetSuspectsList(co
 	}
 
 	return nullptr;
+}
+
+void UDGEntriesManager::OnNewEntriesDiscovered(TSubclassOf<UObject> InInvestigationEntry)
+{
+	UWorld* World = GetWorld();
+	if(World == nullptr
+		|| InInvestigationEntry == nullptr)
+	{
+		return;
+	}
+
+	APlayerController* PC = World->GetFirstPlayerController();
+	if (PC == nullptr)
+	{
+		return;
+	}
+
+	ADGCharacter* Character = Cast<ADGCharacter>(PC->GetPawn());
+	if(Character != nullptr)
+	{
+		const TScriptInterface<IDGInvestigationSubject> InvestigationSubject = InInvestigationEntry->GetDefaultObject();
+
+		Character->OnNewEntriesDiscovered(this, InvestigationSubject);
+	}
 }

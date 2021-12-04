@@ -30,3 +30,8 @@ FText UDGPersonObject::GetFullName() const
  {
 	return GetFullName();
  }
+
+ FText UDGPersonObject::GetInvestigationSubjectNameAsPartOfQuestion(EDGQuestionType InQuestionType) const
+ {
+	 return PersonNameAsPartOfQuestion;
+ }

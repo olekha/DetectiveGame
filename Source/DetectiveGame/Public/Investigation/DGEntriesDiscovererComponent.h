@@ -6,7 +6,6 @@
 #include "Components/ActorComponent.h"
 #include "DGEntriesDiscovererComponent.generated.h"
 
-
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class DETECTIVEGAME_API UDGEntriesDiscovererComponent : public UActorComponent
 {

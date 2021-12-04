@@ -15,6 +15,8 @@
 #include "DrawDebugHelpers.h"
 #include "DGGameInstance.h"
 #include "DGInventoryComponent.h"
+#include "DGEntriesManager.h"
+#include "DGInvestigationSubject.h"
 
 ADGCharacter::ADGCharacter()
 {
@@ -56,6 +58,20 @@ void ADGCharacter::BeginPlay()
 	Super::BeginPlay();
 
 	ResetBrowsing();
+}
+
+void ADGCharacter::OnNewEntriesDiscovered(UDGEntriesManager* InEntriesManager, const TScriptInterface<IDGInvestigationSubject> InNewEntry)
+{
+	if(InEntriesManager == nullptr 
+		|| InNewEntry == nullptr)
+	{
+
+		return;
+	}
+
+	const FText SubjectName = InNewEntry->GetInvestigationSubjectName();
+
+	UE_LOG(LogTemp, Warning, TEXT("New Entrie Descovered: %s"), *SubjectName.ToString());
 }
 
 void ADGCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)

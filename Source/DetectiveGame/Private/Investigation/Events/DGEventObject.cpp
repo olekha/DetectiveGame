@@ -26,3 +26,8 @@ FText UDGEventObject::GetEventDescription() const
 {
 	return EventDescription;
 }
+
+FText UDGEventObject::GetInvestigationSubjectNameAsPartOfQuestion(EDGQuestionType InQuestionType) const
+{
+	return EventNameAsPartOfQuestion;
+}

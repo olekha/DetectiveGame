@@ -26,12 +26,16 @@ public:
 	virtual const TArray<EDGQuestionType>& GetQuestionsCanBeSuspectFor() const override;
 	virtual const TArray<EDGQuestionType>& GetQuestionsCanBeSubjectFor() const override;
 	virtual FText GetInvestigationSubjectName() const override;
+	virtual FText GetInvestigationSubjectNameAsPartOfQuestion(EDGQuestionType InQuestionType) const override;
 	/**IDGInvestigationSubject - implementation END*/
 
 protected:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	FText PersonFullName;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
+	FText PersonNameAsPartOfQuestion;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	FText PersonFullDescription;

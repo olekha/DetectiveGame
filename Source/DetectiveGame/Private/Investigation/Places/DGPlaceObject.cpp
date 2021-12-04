@@ -21,3 +21,8 @@ FText UDGPlaceObject::GetInvestigationSubjectName() const
 {
 	return GetPlaceName();
 }
+
+FText UDGPlaceObject::GetInvestigationSubjectNameAsPartOfQuestion(EDGQuestionType InQuestionType) const
+{
+	return PlaceNameAsPartOfQuestion;
+}

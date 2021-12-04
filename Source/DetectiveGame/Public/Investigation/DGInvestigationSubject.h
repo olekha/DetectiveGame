@@ -32,5 +32,4 @@ public:
 	virtual FText GetInvestigationSubjectName() const = 0;
 
 	virtual FText GetInvestigationSubjectNameAsPartOfQuestion(EDGQuestionType InQuestionType) const = 0;
-
 };

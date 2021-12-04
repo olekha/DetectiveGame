@@ -28,9 +28,9 @@ public:
 	static bool IsQuestionInfoValid(const FDGInvestigationQuestionInfo& InQuestionInfo);
 	static bool IsSuspectInfoValid(const FDGInvestigationSuspectInfo& InQuestionInfo);
 
-	void DiscoverNewEntry(TSubclassOf<UObject> InvestigationEntry);
+	void DiscoverNewEntry(TSubclassOf<UObject> InNewEntry);
 
-	bool IsEntryDiscoveredAlready(TSubclassOf<UObject> InvestigationEntry) const;
+	bool IsEntryDiscoveredAlready(TSubclassOf<UObject> InEntry) const;
 
 	//Subject that can be considered as answer to question of required Type
 	void GetSuspectsForQuestion(EDGQuestionType InQuestion, TArray<TScriptInterface<IDGInvestigationSubject>>& OutEntries) const;
@@ -43,6 +43,10 @@ public:
 	void AddNewInvestigationCase(TPair<FDGInvestigationQuestionInfo, FDGInvestigationSuspectInfo> InNewInvestigationCase);
 
 	const TArray<FDGInvestigationSuspectInfo>* GetSuspectsList(const FDGInvestigationQuestionInfo& InQuestion);
+
+private:
+
+	void OnNewEntriesDiscovered(TSubclassOf<UObject> InInvestigationEntry);
 
 protected:
 
