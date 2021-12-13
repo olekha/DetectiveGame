@@ -7,16 +7,6 @@ FText UDGEventObject::GetEventName() const
 	return EventName;
 }
 
-const TArray<EDGQuestionType>& UDGEventObject::GetQuestionsCanBeSuspectFor() const
-{
-	return ListOfQuestionsCanBeSuspectFor;
-}
-
-const TArray<EDGQuestionType>& UDGEventObject::GetQuestionsCanBeSubjectFor() const
-{
-	return ListOfQuestionsCanBeSubjectFor;
-}
-
 FText UDGEventObject::GetInvestigationSubjectName() const
 {
 	return GetEventName();
@@ -25,9 +15,4 @@ FText UDGEventObject::GetInvestigationSubjectName() const
 FText UDGEventObject::GetEventDescription() const
 {
 	return EventDescription;
-}
-
-FText UDGEventObject::GetInvestigationSubjectNameAsPartOfQuestion(EDGQuestionType InQuestionType) const
-{
-	return EventNameAsPartOfQuestion;
 }

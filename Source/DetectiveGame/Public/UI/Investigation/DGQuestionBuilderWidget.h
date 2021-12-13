@@ -7,19 +7,18 @@
 #include "DGQuestionBuilderWidget.generated.h"
 
 class UComboBoxObject;
-class UTextBlock;
+class UCheckBox;
+class UScrollBox;
+class UButton;
 class UVerticalBox;
 class IDGInvestigationSubject;
-class UButton;
-class IDGQuestion;
-class UScrollBox;
-class UComboBoxString;
-class UDGInvestigationSuspectWidget;
-
-DECLARE_DELEGATE_OneParam(FOnSuspectClickedSignature, int32)
+class UDGProsConsWidget;
+class UDGInvestigationSubjectWidget;
+class UWidgetSwitcher;
+class UTextBlock;
 
 UCLASS()
-class DETECTIVEGAME_API UDGQuestionBuilderWidget : public UUserWidget
+class UDGQuestionBuilderWidget : public UUserWidget
 {
 	GENERATED_BODY()
 	
@@ -31,81 +30,132 @@ protected:
 
 private:
 
-	void FillQuestions();
+	/*bIsChecked parameter is here only because it is used in OnCheckStateChanged in UCheckBox*/
 	UFUNCTION()
-	void OnQuestionChanget(FString SelectedItem, ESelectInfo::Type SelectionType);
-	UFUNCTION()
-	void OnSubjectChanget(FString SelectedItem, ESelectInfo::Type SelectionType);
+	void OnOneFilterChanged(bool bIsChecked = true);
 
-	void FillSubjects();
-	void FillSuspects();
-
-	TScriptInterface<IDGQuestion> GetCurrentSelectedQuestion() const;
-	TScriptInterface<IDGInvestigationSubject> GetCurrentSelectedInvestigationSubject() const;
-	TScriptInterface<IDGInvestigationSubject> GetCurrentSelectedInvestigationSuspect() const;
-
-	void BuildQuestion();
+	void UpdateFilterMask();
+	void UpdateListOfInverstigationSubjects(const uint8 InFilter = 0);
+	void AddToInvestigationSunjectsContainer(const TArray<TSubclassOf<UObject>>& InArrayOfSubjects);
 
 	UFUNCTION()
-	void OnAddSuspectButtonPressed();
+	void OnInvestigationSubjectWidgetHovered();
+
+	int32 GetCurrentHoveredSubject() const;
+
+	TScriptInterface<IDGInvestigationSubject> GetInvestigationSubjectByIndex(const int32 InIndex) const;
+
+	UFUNCTION()
+	void OnAddNewCaseButtonClicked();
+
+	void ClearCaseInfo();
+	void UpdateCaseInfo(const TScriptInterface<IDGInvestigationSubject>& InInvestigationSubject);
+	void SetCasePanelVisibility(bool bInShouldBeVisible);
+
+	UFUNCTION()
+	void OnRemoveProButtonClicked();
+	UFUNCTION()
+	void OnRemoveConButtonClicked();
+
+	int32 GetCurrentHoveredPro() const;
+	int32 GetCurrentHoveredCon() const;
+
 	UFUNCTION()
 	void OnAddProsButtonPressed();
 	UFUNCTION()
 	void OnAddConsButtonPressed();
 
-	void UpdateSuspectsList();
+	TScriptInterface<IDGInvestigationSubject> GetInvestigationSubjectForProsAndCons() const;
 
-	UFUNCTION()
-	void OnSuspectButtonClicked();
+	void UpdateCurrentSelectedSuspects();
 
-	int32 GetCurrentHoveredSuspect() const;
+	void OnKillerSelectionChanged(FString InSelectedItem, ESelectInfo::Type InSelectionType);
+	void OnWeaponSelectionChanged(FString InSelectedItem, ESelectInfo::Type InSelectionType);
+	void OnPlaceSelectionChanged(FString InSelectedItem, ESelectInfo::Type InSelectionType);
+	void OnDateSelectionChanged(FString InSelectedItem, ESelectInfo::Type InSelectionType);
+
+	TScriptInterface<IDGInvestigationSubject> GetSelectedKiller() const;
+	TScriptInterface<IDGInvestigationSubject> GetSelectedWeapon() const;
+	TScriptInterface<IDGInvestigationSubject> GetSelectedPlace() const;
 
 protected:
 
 	UPROPERTY(EditDefaultsOnly)
-	TSubclassOf<UDGInvestigationSuspectWidget> InvestigationSuspectButtonClass;
+	TSubclassOf<UDGInvestigationSubjectWidget> InvestigationSuspectButtonClass;
 
-	UPROPERTY(meta = (BindWidget))
-	UComboBoxObject* QuestionComboBox;
+	UPROPERTY(EditDefaultsOnly)
+	TSubclassOf<UDGProsConsWidget> ProsConsButtonClass;
 
-	UPROPERTY(meta = (BindWidget))
-	UComboBoxObject* InvestigationSubjectComboBox;
-	
-	UPROPERTY(meta = (BindWidget))
-	UTextBlock* QuestionTextBlock;
+	UPROPERTY(meta = (BindWidget), BlueprintReadOnly)
+	UCheckBox* PeopleCheckbox;
 
-	UPROPERTY(meta = (BindWidget))
-	UScrollBox* SuspectsContainer;
+	UPROPERTY(meta = (BindWidget), BlueprintReadOnly)
+	UCheckBox* PlacesCheckbox;
 
-	UPROPERTY(meta = (BindWidget))
-	UComboBoxObject* InvestigationSuspectsComboBox;
+	UPROPERTY(meta = (BindWidget), BlueprintReadOnly)
+	UCheckBox* ItemsCheckbox;
 
-	UPROPERTY(meta = (BindWidget))
-	UVerticalBox* ProsContainer;
+	UPROPERTY(meta = (BindWidget), BlueprintReadOnly)
+	UCheckBox* EventsCheckbox;
 
-	UPROPERTY(meta = (BindWidget))
-	UComboBoxString* ProsComboBox;
+	UPROPERTY(meta = (BindWidget), BlueprintReadOnly)
+	UScrollBox* EntriesScrollBox;
 
-	UPROPERTY(meta = (BindWidget))
-	UVerticalBox* ConsContainer;
+	UPROPERTY(meta = (BindWidget), BlueprintReadOnly)
+	UWidgetSwitcher* CaseInfoPanelWidgetSwitcher;
 
-	UPROPERTY(meta = (BindWidget))
-	UComboBoxString* ConsComboBox;
+	UPROPERTY(meta = (BindWidget), BlueprintReadOnly)
+	UButton* AddNewCaseButton;
 
-	UPROPERTY(meta = (BindWidget))
-	UButton* AddSuspectButton;
+	UPROPERTY(meta = (BindWidget), BlueprintReadOnly)
+	UComboBoxObject* ProsAndConsComboBox;
 
-	UPROPERTY(meta = (BindWidget))
+	UPROPERTY(meta = (BindWidget), BlueprintReadOnly)
 	UButton* AddProsButton;
 
-	UPROPERTY(meta = (BindWidget))
+	UPROPERTY(meta = (BindWidget), BlueprintReadOnly)
 	UButton* AddConsButton;
 
+	UPROPERTY(meta = (BindWidget), BlueprintReadOnly)
+	UVerticalBox* ProsContainer;
+
+	UPROPERTY(meta = (BindWidget), BlueprintReadOnly)	
+	UVerticalBox* ConsContainer;
+
+	UPROPERTY(meta = (BindWidget), BlueprintReadOnly)
+	UTextBlock* KillerNameTextBlock;
+
+	UPROPERTY(meta = (BindWidget), BlueprintReadOnly)
+	UTextBlock* WeaponNameTextBlock;
+	
+	UPROPERTY(meta = (BindWidget), BlueprintReadOnly)
+	UTextBlock* PlaceNameTextBlock;
+
+	UPROPERTY(meta = (BindWidget), BlueprintReadOnly)
+	UTextBlock* DateAndTimeTextBlock;
+
+	UPROPERTY(meta = (BindWidget), BlueprintReadOnly)
+	UComboBoxObject* KillerSuspectsComboBox;
+
+	UPROPERTY(meta = (BindWidget), BlueprintReadOnly)
+	UComboBoxObject* WeaponSuspectsComboBox;
+
+	UPROPERTY(meta = (BindWidget), BlueprintReadOnly)
+	UComboBoxObject* PlaceSuspectsComboBox;
+
+	UPROPERTY(meta = (BindWidget), BlueprintReadOnly)
+	UComboBoxObject* DateSuspectsComboBox;
+
 private:
+
+	UPROPERTY(Transient)
+	TScriptInterface<IDGInvestigationSubject> InvestigationSubjectInfoShownFor;
 
 	UPROPERTY(Transient)
 	TArray<TScriptInterface<IDGInvestigationSubject>> InvestigationSubjects;
 
 	UPROPERTY(Transient)
 	TArray<TScriptInterface<IDGInvestigationSubject>> InvestigationSuspects;
+
+	uint8 FilterBitmask = 0;
 };

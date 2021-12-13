@@ -9,15 +9,6 @@
 class IDGInvestigationSubject;
 class IDGQuestion;
 
-USTRUCT(BlueprintType)
-struct FDGSuspectContainer
-{
-	GENERATED_BODY();
-	
-	UPROPERTY(BlueprintReadOnly)
-	TArray<FDGInvestigationSuspectInfo> Container;
-};
-
 UCLASS(BlueprintType, Blueprintable, hidedropdown)
 class DETECTIVEGAME_API UDGEntriesManager : public UObject
 {
@@ -25,34 +16,46 @@ class DETECTIVEGAME_API UDGEntriesManager : public UObject
 
 public:
 
-	static bool IsQuestionInfoValid(const FDGInvestigationQuestionInfo& InQuestionInfo);
-	static bool IsSuspectInfoValid(const FDGInvestigationSuspectInfo& InQuestionInfo);
+	FORCEINLINE const TArray<TSubclassOf<UObject>>& GetDiscoveredEvents() const
+	{
+		return DiscoveredEvents;
+	}
+
+	FORCEINLINE const TArray<TSubclassOf<UObject>>& GetDiscoveredPersons() const
+	{
+		return DiscoveredPersons;
+	}
+
+	FORCEINLINE const TArray<TSubclassOf<UObject>>& GetDiscoveredPlaces() const
+	{
+		return DiscoveredPlaces;
+	}
+
+	FORCEINLINE const TArray<TSubclassOf<UObject>>& GetDiscoveredEvidence() const
+	{
+		return DiscoveredEvidence;
+	}
+
+	void CreateNewInvestigationCase(const TScriptInterface<IDGInvestigationSubject>& InSuspect);
+	void DeleteInvestigationCase(const TScriptInterface<IDGInvestigationSubject>& InSuspect);
 
 	void DiscoverNewEntry(TSubclassOf<UObject> InNewEntry);
-
 	bool IsEntryDiscoveredAlready(TSubclassOf<UObject> InEntry) const;
 
-	//Subject that can be considered as answer to question of required Type
-	void GetSuspectsForQuestion(EDGQuestionType InQuestion, TArray<TScriptInterface<IDGInvestigationSubject>>& OutEntries) const;
+	const FDGInvestigationSuspectInfo* GetCaseForInvestigationSubject(const TScriptInterface<IDGInvestigationSubject>& InInvestigationSubject) const;
 
-	//Subject that can be used in sentences to form a question with required Type 
-	void GetSubjectsForQuestion(EDGQuestionType InQuestion, TArray<TScriptInterface<IDGInvestigationSubject>>& OutEntries) const;
+	void AddArgumentForCase(const TScriptInterface<IDGInvestigationSubject>& InSuspect, TSubclassOf<UObject> InArgumentFor, bool bShouldCreateCaseIfNotExists = true);
+	void AddArgumentAgainstCase(const TScriptInterface<IDGInvestigationSubject>& InSuspect, TSubclassOf<UObject> InArgumentAgainst, bool bShouldCreateCaseIfNotExists = true);
 
-	TScriptInterface<IDGQuestion> GetQuestion(EDGQuestionType InQuestionType) const;
-
-	void AddNewInvestigationCase(TPair<FDGInvestigationQuestionInfo, FDGInvestigationSuspectInfo> InNewInvestigationCase);
-
-	const TArray<FDGInvestigationSuspectInfo>* GetSuspectsList(const FDGInvestigationQuestionInfo& InQuestion);
+	void RemoveArgumentForCase(const TScriptInterface<IDGInvestigationSubject>& InSuspect, TSubclassOf<UObject> InArgumentFor);
+	void RemoveArgumentAgainstCase(const TScriptInterface<IDGInvestigationSubject>& InSuspect, TSubclassOf<UObject> InArgumentAgainst);
+	
+	void RemoveArgumentForCase(const TScriptInterface<IDGInvestigationSubject>& InSuspect, const int32 InArgumentIndex);
+	void RemoveArgumentAgainstCase(const TScriptInterface<IDGInvestigationSubject>& InSuspect, const int32 InArgumentIndex);
 
 private:
 
 	void OnNewEntriesDiscovered(TSubclassOf<UObject> InInvestigationEntry);
-
-protected:
-
-	//IDGQuestion
-	UPROPERTY(BlueprintReadOnly, EditDefaultsOnly, meta = (MustImplement = "DGQuestion"))
-	TArray<TSubclassOf<UObject>> Questions;
 
 private:
 
@@ -68,6 +71,10 @@ private:
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (AllowPrivateAccess))
 	TArray<TSubclassOf<UObject>> DiscoveredPlaces;
 
+	//IDGEvidence
 	UPROPERTY(BlueprintReadOnly, Transient, meta = (AllowPrivateAccess))
-	TMap<FDGInvestigationQuestionInfo, FDGSuspectContainer> InvestigationCases;
+	TArray<TSubclassOf<UObject>> DiscoveredEvidence;
+
+	UPROPERTY(BlueprintReadOnly, Transient, meta = (AllowPrivateAccess))
+	TArray<FDGInvestigationSuspectInfo> InvestigationCases;
 };

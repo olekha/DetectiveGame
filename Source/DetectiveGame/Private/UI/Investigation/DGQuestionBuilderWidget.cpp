@@ -7,329 +7,352 @@
 #include "Components/VerticalBox.h"
 #include "Components/ScrollBox.h"
 #include "Components/Button.h"
-#include "DGEntriesManager.h"
-#include "DGGameInstance.h"
-#include "DGLocalizations.h"
-#include "DGInvestigationSubject.h"
-#include "DGQuestion.h"
-#include "DetectiveGame.h"
-#include "DGInvestigationSuspectWidget.h"
-
+#include "Components/CheckBox.h"
 #include "Blueprint/WidgetTree.h"
+#include "Components/WidgetSwitcher.h"
+
+#include "DetectiveGame.h"
+#include "DGInvestigationSubjectWidget.h"
+#include "DGGameInstance.h"
+#include "DGEntriesManager.h"
+#include "DGPerson.h"
+#include "DGProsConsWidget.h"
+#include "DGInvestigationSubject.h"
 
 void UDGQuestionBuilderWidget::NativeOnInitialized()
 {
 	Super::NativeOnInitialized();
 
-	QuestionComboBox->OnSelectionChanged.AddDynamic(this, &UDGQuestionBuilderWidget::OnQuestionChanget);
+	PeopleCheckbox->OnCheckStateChanged.AddUniqueDynamic(this, &UDGQuestionBuilderWidget::OnOneFilterChanged);
+	PlacesCheckbox->OnCheckStateChanged.AddUniqueDynamic(this, &UDGQuestionBuilderWidget::OnOneFilterChanged);
+	ItemsCheckbox->OnCheckStateChanged.AddUniqueDynamic(this, &UDGQuestionBuilderWidget::OnOneFilterChanged);
+	EventsCheckbox->OnCheckStateChanged.AddUniqueDynamic(this, &UDGQuestionBuilderWidget::OnOneFilterChanged);
 
-	InvestigationSubjectComboBox->OnSelectionChanged.AddDynamic(this, &UDGQuestionBuilderWidget::OnSubjectChanget);
+	AddNewCaseButton->OnClicked.AddUniqueDynamic(this, &UDGQuestionBuilderWidget::OnAddNewCaseButtonClicked);
 
-	AddSuspectButton->OnClicked.AddDynamic(this, &UDGQuestionBuilderWidget::OnAddSuspectButtonPressed);
 	AddProsButton->OnClicked.AddDynamic(this, &UDGQuestionBuilderWidget::OnAddProsButtonPressed);
 	AddConsButton->OnClicked.AddDynamic(this, &UDGQuestionBuilderWidget::OnAddConsButtonPressed);
+
+	KillerSuspectsComboBox->OnSelectionChanged.AddUniqueDynamic(this, &UDGQuestionBuilderWidget::OnKillerSelectionChanged);
+	WeaponSuspectsComboBox->OnSelectionChanged.AddUniqueDynamic(this, &UDGQuestionBuilderWidget::OnWeaponSelectionChanged);
+	PlaceSuspectsComboBox->OnSelectionChanged.AddUniqueDynamic(this, &UDGQuestionBuilderWidget::OnPlaceSelectionChanged);
+	DateSuspectsComboBox->OnSelectionChanged.AddUniqueDynamic(this, &UDGQuestionBuilderWidget::OnDateSelectionChanged);
 }
 
 void UDGQuestionBuilderWidget::NativeConstruct()
 {
 	Super::NativeConstruct();
 
-	FillQuestions();
+	OnOneFilterChanged(true);
+
+	UpdateCaseInfo(nullptr);
+
+	UpdateCurrentSelectedSuspects();
 }
 
-void UDGQuestionBuilderWidget::FillQuestions()
+void UDGQuestionBuilderWidget::OnOneFilterChanged(bool bIsChecked/* = true*/)
 {
-	QuestionComboBox->ClearOptions();
+	UpdateFilterMask();
 
-	UDGGameInstance* GameInstance = Cast<UDGGameInstance>(GetPlayerContext().GetGameInstance());
-	if (GameInstance != nullptr)
+	UpdateListOfInverstigationSubjects(FilterBitmask);
+}
+
+void UDGQuestionBuilderWidget::UpdateFilterMask()
+{	
+	FilterBitmask = 0;
+
+	FilterBitmask ^= (-static_cast<uint8>(PeopleCheckbox->IsChecked()) ^ FilterBitmask) & (1UL << static_cast<uint8>(EDGFilterOption::People));
+	FilterBitmask ^= (-static_cast<uint8>(PlacesCheckbox->IsChecked()) ^ FilterBitmask) & (1UL << static_cast<uint8>(EDGFilterOption::Places));
+	FilterBitmask ^= (-static_cast<uint8>(EventsCheckbox->IsChecked()) ^ FilterBitmask) & (1UL << static_cast<uint8>(EDGFilterOption::Events));
+	FilterBitmask ^= (-static_cast<uint8>(ItemsCheckbox->IsChecked()) ^ FilterBitmask) & (1UL << static_cast<uint8>(EDGFilterOption::Items));
+}
+
+void UDGQuestionBuilderWidget::UpdateListOfInverstigationSubjects(const uint8 InFilter/* = 0*/)
+{
+	EntriesScrollBox->ClearChildren();
+
+	UDGEntriesManager* EntriesManager = UDGGameInstance::GetEntriesManager(this);
+	if (EntriesManager == nullptr)
 	{
-		UDGEntriesManager* EntriesManager = GameInstance->GetEntriesManager();
-		if (EntriesManager != nullptr)
-		{
-			for (uint8 i = 0; i < static_cast<uint8>(EDGQuestionType::Max); ++i)
-			{
-				TScriptInterface<IDGQuestion> Question = EntriesManager->GetQuestion(static_cast<EDGQuestionType>(i));
-
-				if(Question != nullptr)
-				{
-					QuestionComboBox->AddOption(Question->GetQuestionFullText().ToString(), Question.GetObject());
-				}
-			}
-		}
+		return;
 	}
 
-	QuestionComboBox->SetSelectedIndex(0);
-}
-
-void UDGQuestionBuilderWidget::FillSubjects()
-{
-	InvestigationSubjectComboBox->ClearOptions();
-
-	UDGGameInstance* GameInstance = Cast<UDGGameInstance>(GetPlayerContext().GetGameInstance());
-	if (GameInstance != nullptr)
+	if ((InFilter >> static_cast<uint8>(EDGFilterOption::People)) & 1UL)
 	{
-		UDGEntriesManager* EntriesManager = GameInstance->GetEntriesManager();
-		if (EntriesManager != nullptr)
-		{
-			const TScriptInterface<IDGQuestion> SelectedQuestion = GetCurrentSelectedQuestion();
-			if(SelectedQuestion != nullptr)
-			{
-				const EDGQuestionType SelectedQuestionType = SelectedQuestion->GetQuestionType();
-
-				EntriesManager->GetSubjectsForQuestion(SelectedQuestionType, InvestigationSubjects);
-
-				for (int32 i = 0; i < InvestigationSubjects.Num(); ++i)
-				{
-					const TScriptInterface<IDGInvestigationSubject> InvestigationSubject = InvestigationSubjects[i];
-					if (InvestigationSubject != nullptr)
-					{
-						const FText InName = InvestigationSubject->GetInvestigationSubjectName();
-
-						InvestigationSubjectComboBox->AddOption(InName.ToString(), InvestigationSubject.GetObject());
-					}
-				}
-			}
-		}
+		AddToInvestigationSunjectsContainer(EntriesManager->GetDiscoveredPersons());
 	}
 
-	InvestigationSubjectComboBox->SetSelectedIndex(0);
-}
-
-void UDGQuestionBuilderWidget::FillSuspects()
-{
-	InvestigationSuspectsComboBox->ClearOptions();
-
-	UDGGameInstance* GameInstance = Cast<UDGGameInstance>(GetPlayerContext().GetGameInstance());
-	if (GameInstance != nullptr)
+	if ((InFilter >> static_cast<uint8>(EDGFilterOption::Places)) & 1UL)
 	{
-		UDGEntriesManager* EntriesManager = GameInstance->GetEntriesManager();
-		if (EntriesManager != nullptr)
-		{
-			const TScriptInterface<IDGQuestion> SelectedQuestion = GetCurrentSelectedQuestion();
-			if (SelectedQuestion != nullptr)
-			{
-				const EDGQuestionType SelectedQuestionType = SelectedQuestion->GetQuestionType();
-
-				EntriesManager->GetSuspectsForQuestion(SelectedQuestionType, InvestigationSuspects);
-
-				for (int32 i = 0; i < InvestigationSuspects.Num(); ++i)
-				{
-					const TScriptInterface<IDGInvestigationSubject> InvestigationSuspect = InvestigationSuspects[i];
-					if (InvestigationSuspect != nullptr)
-					{
-						const FText InName = InvestigationSuspect->GetInvestigationSubjectName();
-
-						InvestigationSuspectsComboBox->AddOption(InName.ToString(), InvestigationSuspect.GetObject());
-					}
-				}
-			}
-		}
+		AddToInvestigationSunjectsContainer(EntriesManager->GetDiscoveredPlaces());
 	}
 
-	InvestigationSuspectsComboBox->SetSelectedIndex(0);
-}
-
-void UDGQuestionBuilderWidget::OnQuestionChanget(FString SelectedItem, ESelectInfo::Type SelectionType)
-{
-	FillSubjects();
-	FillSuspects();
-
-	BuildQuestion();
-
-	UpdateSuspectsList();
-}
-
-void UDGQuestionBuilderWidget::OnSubjectChanget(FString SelectedItem, ESelectInfo::Type SelectionType)
-{
-	BuildQuestion();
-
-	UpdateSuspectsList();
-}
-
-TScriptInterface<IDGQuestion> UDGQuestionBuilderWidget::GetCurrentSelectedQuestion() const
-{
-	return TScriptInterface<IDGQuestion>(QuestionComboBox->GetSelectedOptionObject());
-}
-
-TScriptInterface<IDGInvestigationSubject> UDGQuestionBuilderWidget::GetCurrentSelectedInvestigationSubject() const
-{
-	return TScriptInterface<IDGInvestigationSubject>(InvestigationSubjectComboBox->GetSelectedOptionObject());
-}
-
-TScriptInterface<IDGInvestigationSubject> UDGQuestionBuilderWidget::GetCurrentSelectedInvestigationSuspect() const
-{
-	return TScriptInterface<IDGInvestigationSubject>(InvestigationSuspectsComboBox->GetSelectedOptionObject());
-}
-
-void UDGQuestionBuilderWidget::BuildQuestion()
-{
-	const TScriptInterface<IDGQuestion> Question = GetCurrentSelectedQuestion();
-	const TScriptInterface<IDGInvestigationSubject> Subject = GetCurrentSelectedInvestigationSubject();
-
-	FText QuestionText = DGLocalizations::DefaultText;
-	if(Question != nullptr)
+	if ((InFilter >> static_cast<uint8>(EDGFilterOption::Events)) & 1UL)
 	{
-		QuestionText = Question->GetQuestionPartOfSentenceText();
+		AddToInvestigationSunjectsContainer(EntriesManager->GetDiscoveredEvents());
 	}
 
-	FText SubjectText = DGLocalizations::DefaultText;
-	if(Subject != nullptr)
+	if ((InFilter >> static_cast<uint8>(EDGFilterOption::Items)) & 1UL)
 	{
-		SubjectText = Subject->GetInvestigationSubjectName();
+		//@okharchenko add in the future
 	}
 
-	QuestionTextBlock->SetText(FText::Format(NSLOCTEXT("QuestionBuilder", "BuiltQuestionTexts", "{0} {1}"), QuestionText, SubjectText));
+	EntriesScrollBox->ScrollToStart();
 }
 
-void UDGQuestionBuilderWidget::OnAddSuspectButtonPressed()
-{
-	FDGInvestigationQuestionInfo NewQuestion;
-
-	const TScriptInterface<IDGQuestion> Question = GetCurrentSelectedQuestion();
-	const TScriptInterface<IDGInvestigationSubject> Subject = GetCurrentSelectedInvestigationSubject();
-
-	if(Question != nullptr)
-	{
-		NewQuestion.QuestionType = Question->GetQuestionType();
-	}
-
-	if(Subject != nullptr)
-	{
-		NewQuestion.QuestionSubject = TSubclassOf<UObject>(Subject.GetObject()->GetClass());
-	}
-
-	FDGInvestigationSuspectInfo NewSuspect;
-
-	const TScriptInterface<IDGInvestigationSubject> Suspect = GetCurrentSelectedInvestigationSuspect();
-	if(Suspect != nullptr)
-	{
-		NewSuspect.InvestigationSuspect = TSubclassOf<UObject>(Suspect.GetObject()->GetClass());
-	}
-
-	UDGGameInstance* GameInstance = Cast<UDGGameInstance>(GetPlayerContext().GetGameInstance());
-	if (GameInstance != nullptr)
-	{
-		UDGEntriesManager* EntriesManager = GameInstance->GetEntriesManager();
-		if (EntriesManager != nullptr)
-		{
-			EntriesManager->AddNewInvestigationCase(TPair<FDGInvestigationQuestionInfo, FDGInvestigationSuspectInfo>(NewQuestion, NewSuspect));
-		}
-	}
-
-	UpdateSuspectsList();
-}
-
-void UDGQuestionBuilderWidget::UpdateSuspectsList()
+void UDGQuestionBuilderWidget::AddToInvestigationSunjectsContainer(const TArray<TSubclassOf<UObject>>& InArrayOfSubjects)
 {
 	if(InvestigationSuspectButtonClass == nullptr)
 	{
 		return;
 	}
 
-	SuspectsContainer->ClearChildren();
-
-	const TScriptInterface<IDGQuestion> Question = GetCurrentSelectedQuestion();
-	const TScriptInterface<IDGInvestigationSubject> Subject = GetCurrentSelectedInvestigationSubject();
-
-	if(Question == nullptr || Subject == nullptr)
+	for(const TSubclassOf<UObject>& SubjectClass : InArrayOfSubjects)
 	{
-		return;
-	}
-
-	UDGGameInstance* GameInstance = Cast<UDGGameInstance>(GetPlayerContext().GetGameInstance());
-	if (GameInstance != nullptr)
-	{
-		UDGEntriesManager* EntriesManager = GameInstance->GetEntriesManager();
-		if (EntriesManager != nullptr)
+		if(SubjectClass == nullptr)
 		{
-			const TArray<FDGInvestigationSuspectInfo>* InvestigationList = EntriesManager->GetSuspectsList(FDGInvestigationQuestionInfo(Question, Subject));
-			if(InvestigationList != nullptr)
-			{
-				for(int32 i = 0; i < InvestigationList->Num(); ++i)
-				{
-					const FDGInvestigationSuspectInfo& Suspect = (*InvestigationList)[i];
+			continue;
+		}
 
-					if(Suspect.InvestigationSuspect == nullptr)
-					{
-						continue;
-					}
+		const TScriptInterface<IDGInvestigationSubject> Subject = TScriptInterface<IDGInvestigationSubject>(SubjectClass->GetDefaultObject());
+		if (Subject != nullptr)
+		{
+			UDGInvestigationSubjectWidget* SubjectWidget = CreateWidget<UDGInvestigationSubjectWidget>(this, InvestigationSuspectButtonClass);
 
-					UDGInvestigationSuspectWidget* SuspectButton = CreateWidget<UDGInvestigationSuspectWidget>(this, InvestigationSuspectButtonClass);
-					
-					const TScriptInterface<IDGInvestigationSubject> SuspectObject = TScriptInterface<IDGInvestigationSubject>(Suspect.InvestigationSuspect->GetDefaultObject());
+			SubjectWidget->InitWidget(Subject);
+			EntriesScrollBox->AddChild(SubjectWidget);
 
-					SuspectButton->InitWidget(SuspectObject);
-
-					SuspectButton->GetOnButtonClickedDelegate().AddUniqueDynamic(this, &UDGQuestionBuilderWidget::OnSuspectButtonClicked);
-
-					SuspectsContainer->AddChild(SuspectButton);
-				}
-			}
+			SubjectWidget->GetOnButtonHoveredDelegate().AddUniqueDynamic(this, &UDGQuestionBuilderWidget::OnInvestigationSubjectWidgetHovered);
 		}
 	}
 }
 
-void UDGQuestionBuilderWidget::OnSuspectButtonClicked()
+void UDGQuestionBuilderWidget::OnInvestigationSubjectWidgetHovered()
 {
-	//@okharchenko rework
+	int32 CurrentHoveredSuspect = GetCurrentHoveredSubject();
 
-	int32 CurrentHoveredSuspect = GetCurrentHoveredSuspect();
+	const TScriptInterface<IDGInvestigationSubject>& HoveredInvestigationSubject = GetInvestigationSubjectByIndex(CurrentHoveredSuspect);
 
-	if(CurrentHoveredSuspect == INDEX_NONE)
+	UpdateCaseInfo(HoveredInvestigationSubject);
+}
+
+void UDGQuestionBuilderWidget::UpdateCaseInfo(const TScriptInterface<IDGInvestigationSubject>& InInvestigationSubject)
+{
+	InvestigationSubjectInfoShownFor = InInvestigationSubject;
+
+	if (InvestigationSubjectInfoShownFor == nullptr)
 	{
+		SetCasePanelVisibility(false);
 		return;
 	}
 
-	const TScriptInterface<IDGQuestion> Question = GetCurrentSelectedQuestion();
-	const TScriptInterface<IDGInvestigationSubject> Subject = GetCurrentSelectedInvestigationSubject();
-
-	if (Question == nullptr || Subject == nullptr)
+	if (!InvestigationSubjectInfoShownFor.GetObject()->Implements<UDGPerson>())
 	{
+		SetCasePanelVisibility(false);
 		return;
 	}
 
-	UDGGameInstance* GameInstance = Cast<UDGGameInstance>(GetPlayerContext().GetGameInstance());
-	if (GameInstance != nullptr)
+	UDGEntriesManager* EntriesManager = UDGGameInstance::GetEntriesManager(this);
+	if (EntriesManager == nullptr)
 	{
-		UDGEntriesManager* EntriesManager = GameInstance->GetEntriesManager();
-		if (EntriesManager != nullptr)
+		SetCasePanelVisibility(false);
+		return;
+	}
+
+	SetCasePanelVisibility(true);
+
+	ClearCaseInfo();
+
+	const FDGInvestigationSuspectInfo* InvestigationSubjectCase = EntriesManager->GetCaseForInvestigationSubject(InvestigationSubjectInfoShownFor);
+	if (InvestigationSubjectCase == nullptr)
+	{
+		CaseInfoPanelWidgetSwitcher->SetActiveWidgetIndex(0);
+		return;
+	}
+
+	CaseInfoPanelWidgetSwitcher->SetActiveWidgetIndex(1);
+
+	if (ProsConsButtonClass != nullptr)
+	{
+		for (const TSubclassOf<UObject>& ProClass : InvestigationSubjectCase->ProsList)
 		{
-			const TArray<FDGInvestigationSuspectInfo>* InvestigationList = EntriesManager->GetSuspectsList(FDGInvestigationQuestionInfo(Question, Subject));
-			if (InvestigationList != nullptr)
+			if (ProClass == nullptr)
 			{
-				const FDGInvestigationSuspectInfo& Suspect = (*InvestigationList)[CurrentHoveredSuspect];
-
-				for (const TSubclassOf<UObject>& Pro : Suspect.ProsList)
-				{
-					const TScriptInterface<IDGInvestigationSubject> ProObject = TScriptInterface<IDGInvestigationSubject>(Pro->GetDefaultObject());
-					if (ProObject != nullptr)
-					{
-
-
-					}
-				}
-
-				for (const TSubclassOf<UObject>& Con : Suspect.ConsList)
-				{
-					const TScriptInterface<IDGInvestigationSubject> ConObject = TScriptInterface<IDGInvestigationSubject>(Con->GetDefaultObject());
-					if (ConObject != nullptr)
-					{
-
-
-					}
-				}
+				continue;
 			}
+
+			const TScriptInterface<IDGInvestigationSubject> Pro = TScriptInterface<IDGInvestigationSubject>(ProClass->GetDefaultObject());
+			if (Pro != nullptr)
+			{
+				UDGProsConsWidget* ProWidget = CreateWidget<UDGProsConsWidget>(this, ProsConsButtonClass);
+
+				ProWidget->InitWidget(Pro);
+				ProsContainer->AddChild(ProWidget);
+
+				ProWidget->GetOnRemoveButtonClickedDelegate().AddUniqueDynamic(this, &UDGQuestionBuilderWidget::OnRemoveProButtonClicked);
+			}
+		}
+
+		for (const TSubclassOf<UObject>& ConClass : InvestigationSubjectCase->ConsList)
+		{
+			if (ConClass == nullptr)
+			{
+				continue;
+			}
+
+			const TScriptInterface<IDGInvestigationSubject> Con = TScriptInterface<IDGInvestigationSubject>(ConClass->GetDefaultObject());
+			if (Con != nullptr)
+			{
+				UDGProsConsWidget* ConWidget = CreateWidget<UDGProsConsWidget>(this, ProsConsButtonClass);
+
+				ConWidget->InitWidget(Con);
+				ConsContainer->AddChild(ConWidget);
+
+				ConWidget->GetOnRemoveButtonClickedDelegate().AddUniqueDynamic(this, &UDGQuestionBuilderWidget::OnRemoveConButtonClicked);
+			}
+		}
+	}
+
+	ProsAndConsComboBox->ClearOptions();
+
+	for (const TSubclassOf<UObject>& SubjectClass : EntriesManager->GetDiscoveredEvents())
+	{
+		if (SubjectClass == nullptr)
+		{
+			continue;
+		}
+
+		const TScriptInterface<IDGInvestigationSubject> Subject = TScriptInterface<IDGInvestigationSubject>(SubjectClass->GetDefaultObject());
+		if (Subject != nullptr)
+		{
+			ProsAndConsComboBox->AddOption(Subject->GetInvestigationSubjectName().ToString(), Subject.GetObject());
 		}
 	}
 }
 
-int32 UDGQuestionBuilderWidget::GetCurrentHoveredSuspect() const
+int32 UDGQuestionBuilderWidget::GetCurrentHoveredSubject() const
 {
-	for (int32 i = 0; i < SuspectsContainer->GetChildrenCount(); ++i)
+	for (int32 i = 0; i < EntriesScrollBox->GetChildrenCount(); ++i)
 	{
-		UDGInvestigationSuspectWidget* SuspectWidget = Cast<UDGInvestigationSuspectWidget>(SuspectsContainer->GetChildAt(i));
-		if(SuspectWidget->IsHovered())
+		UWidget* SuspectWidget = EntriesScrollBox->GetChildAt(i);
+		if (SuspectWidget != nullptr && SuspectWidget->IsHovered())
+		{
+			return i;
+		}
+	}
+
+	return INDEX_NONE;
+}
+
+TScriptInterface<IDGInvestigationSubject> UDGQuestionBuilderWidget::GetInvestigationSubjectByIndex(const int32 InIndex) const
+{
+	if(UDGInvestigationSubjectWidget* SubjectWidget =  Cast<UDGInvestigationSubjectWidget>(EntriesScrollBox->GetChildAt(InIndex)))
+	{
+		return SubjectWidget->GetBoundInvestigationSubject();
+	}
+	
+	return nullptr;
+}
+
+void UDGQuestionBuilderWidget::ClearCaseInfo()
+{
+	ProsAndConsComboBox->ClearOptions();
+
+	ProsContainer->ClearChildren();
+	ConsContainer->ClearChildren();
+}
+
+void UDGQuestionBuilderWidget::OnAddNewCaseButtonClicked()
+{
+	if(InvestigationSubjectInfoShownFor == nullptr)
+	{
+		return;
+	}
+
+	UDGEntriesManager* EntriesManager = UDGGameInstance::GetEntriesManager(this);
+	if (EntriesManager == nullptr)
+	{
+		return;
+	}
+
+	EntriesManager->CreateNewInvestigationCase(InvestigationSubjectInfoShownFor);
+
+	UpdateCaseInfo(InvestigationSubjectInfoShownFor);
+}
+
+void UDGQuestionBuilderWidget::SetCasePanelVisibility(bool bInShouldBeVisible)
+{
+	CaseInfoPanelWidgetSwitcher->SetVisibility(bInShouldBeVisible ? ESlateVisibility::Visible : ESlateVisibility::Hidden);
+}
+
+void UDGQuestionBuilderWidget::OnRemoveProButtonClicked()
+{
+	if(InvestigationSubjectInfoShownFor == nullptr)
+	{
+		return;
+	}
+	
+	UDGEntriesManager* EntriesManager = UDGGameInstance::GetEntriesManager(this);
+	if (EntriesManager == nullptr)
+	{
+		return;
+	}
+
+	int32 CurrentHoveredPro = GetCurrentHoveredPro();
+	if (CurrentHoveredPro == INDEX_NONE)
+	{
+		return;
+	}
+
+	EntriesManager->RemoveArgumentForCase(InvestigationSubjectInfoShownFor, CurrentHoveredPro);
+
+	UpdateCaseInfo(InvestigationSubjectInfoShownFor);
+}
+
+void UDGQuestionBuilderWidget::OnRemoveConButtonClicked()
+{
+	if (InvestigationSubjectInfoShownFor == nullptr)
+	{
+		return;
+	}
+
+	UDGEntriesManager* EntriesManager = UDGGameInstance::GetEntriesManager(this);
+	if (EntriesManager == nullptr)
+	{
+		return;
+	}
+
+	int32 CurrentHoveredCon = GetCurrentHoveredCon();
+	if (CurrentHoveredCon == INDEX_NONE)
+	{
+		return;
+	}
+
+	EntriesManager->RemoveArgumentAgainstCase(InvestigationSubjectInfoShownFor, CurrentHoveredCon);
+
+	UpdateCaseInfo(InvestigationSubjectInfoShownFor);
+}
+
+int32 UDGQuestionBuilderWidget::GetCurrentHoveredPro() const
+{
+	for (int32 i = 0; i < ProsContainer->GetChildrenCount(); ++i)
+	{
+		UWidget* ProWidget = ProsContainer->GetChildAt(i);
+		if (ProWidget != nullptr && ProWidget->IsHovered())
+		{
+			return i;
+		}
+	}
+
+	return INDEX_NONE;
+}
+
+int32 UDGQuestionBuilderWidget::GetCurrentHoveredCon() const
+{
+	for (int32 i = 0; i < ConsContainer->GetChildrenCount(); ++i)
+	{
+		UWidget* ConWidget = ConsContainer->GetChildAt(i);
+		if (ConWidget != nullptr && ConWidget->IsHovered())
 		{
 			return i;
 		}
@@ -340,10 +363,155 @@ int32 UDGQuestionBuilderWidget::GetCurrentHoveredSuspect() const
 
 void UDGQuestionBuilderWidget::OnAddProsButtonPressed()
 {
+	if (InvestigationSubjectInfoShownFor == nullptr)
+	{
+		return;
+	}
 
+	UDGEntriesManager* EntriesManager = UDGGameInstance::GetEntriesManager(this);
+	if (EntriesManager == nullptr)
+	{
+		return;
+	}
+
+	TScriptInterface<IDGInvestigationSubject> ArgumentForCase = GetInvestigationSubjectForProsAndCons();
+
+	if(ArgumentForCase == nullptr)
+	{
+		return;
+	}
+
+	EntriesManager->AddArgumentForCase(InvestigationSubjectInfoShownFor, TSubclassOf<UObject>(ArgumentForCase.GetObject()->GetClass()));
+
+	UpdateCaseInfo(InvestigationSubjectInfoShownFor);
 }
 
 void UDGQuestionBuilderWidget::OnAddConsButtonPressed()
 {
+	if (InvestigationSubjectInfoShownFor == nullptr)
+	{
+		return;
+	}
 
+	UDGEntriesManager* EntriesManager = UDGGameInstance::GetEntriesManager(this);
+	if (EntriesManager == nullptr)
+	{
+		return;
+	}
+
+	TScriptInterface<IDGInvestigationSubject> ArgumentAgainstCase = GetInvestigationSubjectForProsAndCons();
+
+	if (ArgumentAgainstCase == nullptr)
+	{
+		return;
+	}
+
+	EntriesManager->AddArgumentAgainstCase(InvestigationSubjectInfoShownFor, TSubclassOf<UObject>(ArgumentAgainstCase.GetObject()->GetClass()));
+
+	UpdateCaseInfo(InvestigationSubjectInfoShownFor);
+}
+
+TScriptInterface<IDGInvestigationSubject> UDGQuestionBuilderWidget::GetInvestigationSubjectForProsAndCons() const
+{
+	return TScriptInterface<IDGInvestigationSubject>(ProsAndConsComboBox->GetSelectedOptionObject());
+}
+
+void UDGQuestionBuilderWidget::UpdateCurrentSelectedSuspects()
+{
+	UDGEntriesManager* EntriesManager = UDGGameInstance::GetEntriesManager(this);
+	if(EntriesManager == nullptr)
+	{
+		return;
+	}
+
+	KillerSuspectsComboBox->ClearOptions();
+	for (const TSubclassOf<UObject>& SubjectClass : EntriesManager->GetDiscoveredPersons())
+	{
+		if (SubjectClass == nullptr)
+		{
+			continue;
+		}
+
+		const TScriptInterface<IDGInvestigationSubject> Subject = TScriptInterface<IDGInvestigationSubject>(SubjectClass->GetDefaultObject());
+		if (Subject != nullptr)
+		{
+			KillerSuspectsComboBox->AddOption(Subject->GetInvestigationSubjectName().ToString(), Subject.GetObject());
+		}
+	}
+
+	PlaceSuspectsComboBox->ClearOptions();
+	for (const TSubclassOf<UObject>& SubjectClass : EntriesManager->GetDiscoveredPlaces())
+	{
+		if (SubjectClass == nullptr)
+		{
+			continue;
+		}
+
+		const TScriptInterface<IDGInvestigationSubject> Subject = TScriptInterface<IDGInvestigationSubject>(SubjectClass->GetDefaultObject());
+		if (Subject != nullptr)
+		{
+			PlaceSuspectsComboBox->AddOption(Subject->GetInvestigationSubjectName().ToString(), Subject.GetObject());
+		}
+	}
+
+	WeaponSuspectsComboBox->ClearOptions();
+	DateSuspectsComboBox->ClearOptions();
+
+	OnKillerSelectionChanged("", ESelectInfo::Direct);
+	OnWeaponSelectionChanged("", ESelectInfo::Direct);
+	OnPlaceSelectionChanged("", ESelectInfo::Direct);
+	OnDateSelectionChanged("", ESelectInfo::Direct);
+}
+
+void UDGQuestionBuilderWidget::OnKillerSelectionChanged(FString InSelectedItem, ESelectInfo::Type InSelectionType)
+{
+	FText SelectedKillerName = FText::FromString("-");
+	if(TScriptInterface<IDGInvestigationSubject> SelectedKiller = GetSelectedKiller())
+	{
+		SelectedKillerName = SelectedKiller->GetInvestigationSubjectName();
+	}
+
+	KillerNameTextBlock->SetText(SelectedKillerName);
+}
+
+void UDGQuestionBuilderWidget::OnWeaponSelectionChanged(FString InSelectedItem, ESelectInfo::Type InSelectionType)
+{
+	FText SelectedWeaponName = FText::FromString("-");
+	if (TScriptInterface<IDGInvestigationSubject> SelectedWeapon = GetSelectedWeapon())
+	{
+		SelectedWeaponName = SelectedWeapon->GetInvestigationSubjectName();
+	}
+
+	WeaponNameTextBlock->SetText(SelectedWeaponName);
+}
+
+void UDGQuestionBuilderWidget::OnPlaceSelectionChanged(FString InSelectedItem, ESelectInfo::Type InSelectionType)
+{
+	FText SelectedPlaceName = FText::FromString("-");
+	if (TScriptInterface<IDGInvestigationSubject> SelectedPlace = GetSelectedPlace())
+	{
+		SelectedPlaceName = SelectedPlace->GetInvestigationSubjectName();
+	}
+
+	PlaceNameTextBlock->SetText(SelectedPlaceName);
+}
+
+void UDGQuestionBuilderWidget::OnDateSelectionChanged(FString InSelectedItem, ESelectInfo::Type InSelectionType)
+{
+	DateAndTimeTextBlock->SetText(FText::FromString("-"));
+}
+
+TScriptInterface<IDGInvestigationSubject> UDGQuestionBuilderWidget::GetSelectedKiller() const
+{
+	return TScriptInterface<IDGInvestigationSubject>(KillerSuspectsComboBox->GetSelectedOptionObject());
+}
+
+TScriptInterface<IDGInvestigationSubject> UDGQuestionBuilderWidget::GetSelectedWeapon() const
+{
+	return TScriptInterface<IDGInvestigationSubject>(WeaponSuspectsComboBox->GetSelectedOptionObject());
+}
+
+TScriptInterface<IDGInvestigationSubject> UDGQuestionBuilderWidget::GetSelectedPlace() const
+{
+	return TScriptInterface<IDGInvestigationSubject>(PlaceSuspectsComboBox->GetSelectedOptionObject());
 }

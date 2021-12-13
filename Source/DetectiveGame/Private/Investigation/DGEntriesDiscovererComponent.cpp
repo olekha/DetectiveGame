@@ -29,15 +29,11 @@ void UDGEntriesDiscovererComponent::DiscoverEntry(int32 InIndex)
 {
 	if(EntriesListToDiscover.IsValidIndex(InIndex) && IsValid(EntriesListToDiscover[InIndex]))
 	{
-		UDGGameInstance* GameInstance = Cast<UDGGameInstance>(GetWorld()->GetGameInstance());
-		if(GameInstance != nullptr)
+		UDGEntriesManager* EntriesManager = UDGGameInstance::GetEntriesManager(this);
+		if (EntriesManager != nullptr)
 		{
-			UDGEntriesManager* EntriesManager = GameInstance->GetEntriesManager();
-			if(EntriesManager != nullptr)
-			{
-				EntriesManager->DiscoverNewEntry(EntriesListToDiscover[InIndex]);
-			}
-		}		
+			EntriesManager->DiscoverNewEntry(EntriesListToDiscover[InIndex]);
+		}
 	}
 }
 

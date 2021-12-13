@@ -25,11 +25,5 @@ class DETECTIVEGAME_API IDGInvestigationSubject
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
 
-	virtual const TArray<EDGQuestionType>& GetQuestionsCanBeSuspectFor() const = 0;
-
-	virtual const TArray<EDGQuestionType>& GetQuestionsCanBeSubjectFor() const = 0;
-
 	virtual FText GetInvestigationSubjectName() const = 0;
-
-	virtual FText GetInvestigationSubjectNameAsPartOfQuestion(EDGQuestionType InQuestionType) const = 0;
 };

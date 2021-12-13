@@ -6,21 +6,33 @@
 #include "DGEvent.h"
 #include "DGPerson.h"
 #include "DGPlace.h"
-#include "DGQuestion.h"
+#include "DGEvidence.h"
 #include "DGGameInstance.h"
 #include "DGCharacter.h"
 #include "GameFramework/PlayerController.h"
 
-bool UDGEntriesManager::IsQuestionInfoValid(const FDGInvestigationQuestionInfo& InQuestionInfo)
+void UDGEntriesManager::CreateNewInvestigationCase(const TScriptInterface<IDGInvestigationSubject>& InSuspect)
 {
-	return InQuestionInfo.QuestionType != EDGQuestionType::None
-			&& InQuestionInfo.QuestionType != EDGQuestionType::Max
-			&& InQuestionInfo.QuestionSubject != nullptr;
+	if (InSuspect != nullptr)
+	{
+		const int32 ExistsUnderIndex = InvestigationCases.IndexOfByKey(InSuspect);
+		if(ExistsUnderIndex == INDEX_NONE)
+		{
+			FDGInvestigationSuspectInfo& NewCase = InvestigationCases.Add_GetRef(FDGInvestigationSuspectInfo());
+
+			NewCase.InvestigationSuspect = TSubclassOf<UObject>(InSuspect.GetObject()->GetClass());
+		}
+	}
 }
 
-bool UDGEntriesManager::IsSuspectInfoValid(const FDGInvestigationSuspectInfo& InQuestionInfo)
+void UDGEntriesManager::DeleteInvestigationCase(const TScriptInterface<IDGInvestigationSubject>& InSuspect)
 {
-	return InQuestionInfo.InvestigationSuspect != nullptr;
+	if (InSuspect != nullptr)
+	{
+		InvestigationCases.RemoveAll([InSuspect](const FDGInvestigationSuspectInfo& InCase){
+			return  InCase == InSuspect;
+		});
+	}
 }
 
 void UDGEntriesManager::DiscoverNewEntry(TSubclassOf<UObject> InNewEntry)
@@ -47,6 +59,11 @@ void UDGEntriesManager::DiscoverNewEntry(TSubclassOf<UObject> InNewEntry)
 		DiscoveredPlaces.AddUnique(InNewEntry);
 	}
 
+	if (InNewEntry->ImplementsInterface(UDGEvidence::StaticClass()))
+	{
+		DiscoveredEvidence.AddUnique(InNewEntry);
+	}
+
 	OnNewEntriesDiscovered(InNewEntry);
 }
 
@@ -68,176 +85,125 @@ bool UDGEntriesManager::IsEntryDiscoveredAlready(TSubclassOf<UObject> InEntry) c
 		{
 			return true;
 		}
+
+		if (DiscoveredEvidence.Contains(InEntry))
+		{
+			return true;
+		}
 	}
 
 	return false;
 }
 
-void UDGEntriesManager::GetSuspectsForQuestion(EDGQuestionType InQuestion, TArray<TScriptInterface<IDGInvestigationSubject>>& OutEntries) const
+const FDGInvestigationSuspectInfo* UDGEntriesManager::GetCaseForInvestigationSubject(const TScriptInterface<IDGInvestigationSubject>& InInvestigationSubject) const
 {
-	OutEntries.Reset();
+	return InvestigationCases.FindByPredicate([InInvestigationSubject](const FDGInvestigationSuspectInfo& InCase){
+		return InCase == InInvestigationSubject;
+	});
+}
 
-	for(int32 i = 0; i < DiscoveredEvents.Num(); ++i)
+void UDGEntriesManager::AddArgumentForCase(const TScriptInterface<IDGInvestigationSubject>& InSuspect, TSubclassOf<UObject> InArgumentFor, bool bShouldCreateCaseIfNotExists/* = true*/)
+{
+	if(InSuspect == nullptr)
 	{
-		TSubclassOf<UObject> DiscoveredEvent = DiscoveredEvents[i];
-
-		const TScriptInterface<IDGInvestigationSubject> Event = TScriptInterface<IDGInvestigationSubject>(DiscoveredEvent->GetDefaultObject());
-		if (Event != nullptr)
-		{
-			const TArray<EDGQuestionType>& QuestionsArray = Event->GetQuestionsCanBeSuspectFor();
-
-			const bool bContainsQuestion = QuestionsArray.Contains(InQuestion);
-
-			if(bContainsQuestion)
-			{
-				OutEntries.AddUnique(Event);
-			}			
-		}
+		return;
 	}
 
-	for (int32 i = 0; i < DiscoveredPersons.Num(); ++i)
+	FDGInvestigationSuspectInfo* Case = const_cast<FDGInvestigationSuspectInfo*>(GetCaseForInvestigationSubject(InSuspect));
+	if(Case != nullptr)
 	{
-		TSubclassOf<UObject> DiscoveredPerson = DiscoveredPersons[i];
-
-		const TScriptInterface<IDGInvestigationSubject> Persone = DiscoveredPerson->GetDefaultObject();
-		if (Persone != nullptr)
-		{
-			const TArray<EDGQuestionType>& QuestionsArray = Persone->GetQuestionsCanBeSuspectFor();
-
-			const bool bContainsQuestion = QuestionsArray.Contains(InQuestion);
-
-			if(bContainsQuestion)
-			{
-				OutEntries.AddUnique(Persone);
-			}
-		}
+		Case->ProsList.AddUnique(InArgumentFor);
 	}
-
-	for (int32 i = 0; i < DiscoveredPlaces.Num(); ++i)
+	else if(bShouldCreateCaseIfNotExists)
 	{
-		TSubclassOf<UObject> DiscoveredPlace = DiscoveredPlaces[i];
+		CreateNewInvestigationCase(InSuspect);
 
-		const TScriptInterface<IDGInvestigationSubject> Place = DiscoveredPlace->GetDefaultObject();
-		if (Place != nullptr)
-		{
-			const TArray<EDGQuestionType>& QuestionsArray = Place->GetQuestionsCanBeSuspectFor();
-
-			const bool bContainsQuestion = QuestionsArray.Contains(InQuestion);
-
-			if(bContainsQuestion)
-			{
-				OutEntries.AddUnique(Place);
-			}		
-		}
+		AddArgumentForCase(InSuspect, InArgumentFor, false);
 	}
 }
 
-void UDGEntriesManager::GetSubjectsForQuestion(EDGQuestionType InQuestion, TArray<TScriptInterface<IDGInvestigationSubject>>& OutEntries) const
+void UDGEntriesManager::AddArgumentAgainstCase(const TScriptInterface<IDGInvestigationSubject>& InSuspect, TSubclassOf<UObject> InArgumentAgainst, bool bShouldCreateCaseIfNotExists/* = true*/)
 {
-	OutEntries.Reset();
-
-	for (int32 i = 0; i < DiscoveredEvents.Num(); ++i)
+	if (InSuspect == nullptr)
 	{
-		TSubclassOf<UObject> DiscoveredEvent = DiscoveredEvents[i];
-
-		const TScriptInterface<IDGInvestigationSubject> Event = TScriptInterface<IDGInvestigationSubject>(DiscoveredEvent->GetDefaultObject());
-		if (Event != nullptr)
-		{
-			const TArray<EDGQuestionType>& QuestionsArray = Event->GetQuestionsCanBeSubjectFor();
-
-			const bool bContainsQuestion = QuestionsArray.Contains(InQuestion);
-
-			if (bContainsQuestion)
-			{
-				OutEntries.AddUnique(Event);
-			}
-		}
+		return;
 	}
 
-	for (int32 i = 0; i < DiscoveredPersons.Num(); ++i)
+	FDGInvestigationSuspectInfo* Case = const_cast<FDGInvestigationSuspectInfo*>(GetCaseForInvestigationSubject(InSuspect));
+	if (Case != nullptr)
 	{
-		TSubclassOf<UObject> DiscoveredPerson = DiscoveredPersons[i];
-
-		const TScriptInterface<IDGInvestigationSubject> Persone = DiscoveredPerson->GetDefaultObject();
-		if (Persone != nullptr)
-		{
-			const TArray<EDGQuestionType>& QuestionsArray = Persone->GetQuestionsCanBeSubjectFor();
-
-			const bool bContainsQuestion = QuestionsArray.Contains(InQuestion);
-
-			if (bContainsQuestion)
-			{
-				OutEntries.AddUnique(Persone);
-			}
-		}
+		Case->ConsList.AddUnique(InArgumentAgainst);
 	}
-
-	for (int32 i = 0; i < DiscoveredPlaces.Num(); ++i)
+	else if (bShouldCreateCaseIfNotExists)
 	{
-		TSubclassOf<UObject> DiscoveredPlace = DiscoveredPlaces[i];
+		CreateNewInvestigationCase(InSuspect);
 
-		const TScriptInterface<IDGInvestigationSubject> Place = DiscoveredPlace->GetDefaultObject();
-		if (Place != nullptr)
-		{
-			const TArray<EDGQuestionType>& QuestionsArray = Place->GetQuestionsCanBeSubjectFor();
-
-			const bool bContainsQuestion = QuestionsArray.Contains(InQuestion);
-
-			if (bContainsQuestion)
-			{
-				OutEntries.AddUnique(Place);
-			}
-		}
+		AddArgumentForCase(InSuspect, InArgumentAgainst, false);
 	}
 }
 
-TScriptInterface<IDGQuestion> UDGEntriesManager::GetQuestion(EDGQuestionType InQuestionType) const
+void UDGEntriesManager::RemoveArgumentForCase(const TScriptInterface<IDGInvestigationSubject>& InSuspect, TSubclassOf<UObject> InArgumentFor)
 {
-	const TSubclassOf<UObject>* Question = Questions.FindByPredicate([InQuestionType](TSubclassOf<UObject> InQuestionClass) {
-
-		if (InQuestionClass == nullptr)
-		{
-			return false;
-		}
-
-		const TScriptInterface<IDGQuestion> Place = InQuestionClass->GetDefaultObject();
-		if (Place == nullptr)
-		{
-			return false;
-		}
-
-		return Place->GetQuestionType() == InQuestionType;
-		});
-
-	if (Question == nullptr)
+	if (InSuspect == nullptr)
 	{
-		return nullptr;
+		return;
 	}
 
-	return TScriptInterface<IDGQuestion>(Question->GetDefaultObject());
+	FDGInvestigationSuspectInfo* Case = const_cast<FDGInvestigationSuspectInfo*>(GetCaseForInvestigationSubject(InSuspect));
+	if (Case == nullptr)
+	{
+		return;
+	}
+
+	Case->ProsList.Remove(InArgumentFor);
 }
 
-void UDGEntriesManager::AddNewInvestigationCase(TPair<FDGInvestigationQuestionInfo, FDGInvestigationSuspectInfo> InNewInvestigationCase)
+void UDGEntriesManager::RemoveArgumentAgainstCase(const TScriptInterface<IDGInvestigationSubject>& InSuspect, TSubclassOf<UObject> InArgumentAgainst)
 {
-	if(UDGEntriesManager::IsQuestionInfoValid(InNewInvestigationCase.Key)
-		&& UDGEntriesManager::IsSuspectInfoValid(InNewInvestigationCase.Value))
+	if (InSuspect == nullptr)
 	{
-		FDGSuspectContainer& Container = InvestigationCases.FindOrAdd(InNewInvestigationCase.Key);
-
-		Container.Container.AddUnique(InNewInvestigationCase.Value);
+		return;
 	}
+
+	FDGInvestigationSuspectInfo* Case = const_cast<FDGInvestigationSuspectInfo*>(GetCaseForInvestigationSubject(InSuspect));
+	if (Case == nullptr)
+	{
+		return;
+	}
+
+	Case->ConsList.Remove(InArgumentAgainst);
 }
 
-const TArray<FDGInvestigationSuspectInfo>* UDGEntriesManager::GetSuspectsList(const FDGInvestigationQuestionInfo& InQuestion)
+void UDGEntriesManager::RemoveArgumentForCase(const TScriptInterface<IDGInvestigationSubject>& InSuspect, const int32 InArgumentIndex)
 {
-	FDGSuspectContainer* Container = InvestigationCases.Find(InQuestion);
-
-	if(Container != nullptr)
+	if (InSuspect == nullptr)
 	{
-		return &(Container->Container);
+		return;
 	}
 
-	return nullptr;
+	FDGInvestigationSuspectInfo* Case = const_cast<FDGInvestigationSuspectInfo*>(GetCaseForInvestigationSubject(InSuspect));
+	if (Case == nullptr)
+	{
+		return;
+	}
+
+	Case->ProsList.RemoveAt(InArgumentIndex);
+}
+
+void UDGEntriesManager::RemoveArgumentAgainstCase(const TScriptInterface<IDGInvestigationSubject>& InSuspect, const int32 InArgumentIndex)
+{
+	if (InSuspect == nullptr)
+	{
+		return;
+	}
+
+	FDGInvestigationSuspectInfo* Case = const_cast<FDGInvestigationSuspectInfo*>(GetCaseForInvestigationSubject(InSuspect));
+	if (Case == nullptr)
+	{
+		return;
+	}
+
+	Case->ConsList.RemoveAt(InArgumentIndex);
 }
 
 void UDGEntriesManager::OnNewEntriesDiscovered(TSubclassOf<UObject> InInvestigationEntry)

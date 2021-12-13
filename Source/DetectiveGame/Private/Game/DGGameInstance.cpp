@@ -4,11 +4,29 @@
 #include "Game/DGGameInstance.h"
 #include "DGEntriesManager.h"
 
-UDGEntriesManager* UDGGameInstance::GetEntriesManager() const
+UDGEntriesManager* UDGGameInstance::GetEntriesManager(UObject* InObjectContext)
 {
-	if (EntriesManager == nullptr && EntriesManagerClass != nullptr)
+	if(InObjectContext == nullptr)
 	{
-		EntriesManager = NewObject<UDGEntriesManager>(GetWorld(), EntriesManagerClass);
+		return nullptr;
 	}
-	return EntriesManager;
+
+	UWorld* WorldObject = InObjectContext->GetWorld();
+	if(WorldObject == nullptr)
+	{
+		return nullptr;
+	}
+
+	UDGGameInstance* GameInstanceObject = WorldObject->GetGameInstance<UDGGameInstance>();
+	if(GameInstanceObject == nullptr)
+	{
+		return nullptr;
+	}
+
+	if (GameInstanceObject->EntriesManager == nullptr && GameInstanceObject->EntriesManagerClass != nullptr)
+	{
+		GameInstanceObject->EntriesManager = NewObject<UDGEntriesManager>(WorldObject, GameInstanceObject->EntriesManagerClass);
+	}
+
+	return GameInstanceObject->EntriesManager;
 }

@@ -5,54 +5,6 @@
 #include "CoreMinimal.h"
 #include "DetectiveGame.generated.h"
 
-UENUM(BlueprintType)
-enum class EDGQuestionType : uint8
-{
-	None UMETA(Hidden),
-	What,
-	When,
-	Where,
-	How,
-	Why,
-	Who,
-	Max UMETA(Hidden)
-};
-
-USTRUCT(BlueprintType)
-struct FDGInvestigationQuestionInfo
-{
-	GENERATED_USTRUCT_BODY()
-
-	UPROPERTY(BlueprintReadOnly)
-	EDGQuestionType QuestionType;
-
-	UPROPERTY(Transient, BlueprintReadOnly)
-	TSubclassOf<UObject> QuestionSubject;
-
-	FDGInvestigationQuestionInfo() : QuestionType(EDGQuestionType::None), QuestionSubject(nullptr) {}	
-	FDGInvestigationQuestionInfo(EDGQuestionType InQuestionType, TSubclassOf<UObject> InQuestionSubject) : QuestionType(InQuestionType), QuestionSubject(InQuestionSubject) {}
-	FDGInvestigationQuestionInfo(EDGQuestionType InQuestionType, const TScriptInterface<class IDGInvestigationSubject> InQuestionSubject)
-	{
-		QuestionType = InQuestionType;
-		QuestionSubject = TSubclassOf<UObject>(InQuestionSubject.GetObject()->GetClass());
-	}
-	
-	FDGInvestigationQuestionInfo(const TScriptInterface<class IDGQuestion> InQuestion, const TScriptInterface<class IDGInvestigationSubject> InQuestionSubject);
-
-	bool operator==(const FDGInvestigationQuestionInfo& Other) const
-	{
-		return this->QuestionType == Other.QuestionType && this->QuestionSubject == Other.QuestionSubject;
-	}
-};
-
-
-FORCEINLINE uint32 GetTypeHash(const FDGInvestigationQuestionInfo& Thing)
-{
-	uint32 Hash = FCrc::MemCrc32(&Thing, sizeof(FDGInvestigationQuestionInfo));
-
-	return Hash;
-}
-
 USTRUCT(Blueprintable, BlueprintType)
 struct FDGInvestigationSuspectInfo
 {
@@ -71,4 +23,37 @@ struct FDGInvestigationSuspectInfo
 	{
 		return this->InvestigationSuspect == Other.InvestigationSuspect;
 	}
+
+	bool operator==(const TScriptInterface<class IDGInvestigationSubject>& Other) const
+	{
+		if(Other == nullptr)
+		{
+			return InvestigationSuspect == nullptr;
+		}
+
+		return this->InvestigationSuspect == TSubclassOf<UObject>(Other.GetObject()->GetClass());
+	}
+
+	FDGInvestigationSuspectInfo& operator+(const FDGInvestigationSuspectInfo& Other)
+	{
+		this->ProsList.Append(Other.ProsList);
+		this->ConsList.Append(Other.ConsList);
+
+		return *this;
+	}
+
+	FDGInvestigationSuspectInfo& operator+=(const FDGInvestigationSuspectInfo& Other)
+	{
+		*this = *this + Other;
+
+		return *this;
+	}
+};
+
+enum class EDGFilterOption : uint8
+{
+	People,
+	Places,
+	Items,
+	Events,
 };

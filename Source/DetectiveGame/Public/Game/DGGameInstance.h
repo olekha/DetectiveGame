@@ -14,17 +14,18 @@ class DETECTIVEGAME_API UDGGameInstance : public UGameInstance
 {
 	GENERATED_BODY()
 
-public:
-
-	UDGEntriesManager* GetEntriesManager() const;
+	friend class UDGGameInstance;
 
 public:
+
+	static UDGEntriesManager* GetEntriesManager(UObject* InObjectContext);
+
+protected:
 	
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly)
 	TSubclassOf<UDGEntriesManager> EntriesManagerClass;	
 
-private:
 	UPROPERTY(Transient)
-	mutable UDGEntriesManager* EntriesManager;
+	UDGEntriesManager* EntriesManager;
 
 };

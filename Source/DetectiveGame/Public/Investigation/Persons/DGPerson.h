@@ -20,9 +20,9 @@ class DETECTIVEGAME_API IDGPerson
 	// Add interface functions to this class. This is the class that will be inherited to implement this interface.
 public:
 
-	virtual FText GetFullName() const = 0;
+	virtual FText GetPersonName() const = 0;
 
-	virtual FText GetFullDescription() const = 0;
+	virtual FText GetPersonDescription() const = 0;
 
 	virtual FText GetDateOfBirth() const = 0;
 };
