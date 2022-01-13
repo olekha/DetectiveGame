@@ -212,9 +212,20 @@ void ADGCharacter::SetMeshForBrowsing(ADGBrowseableActor* Item)
 	if (Item != nullptr && BrowseItemComponent != nullptr)
 	{
 		BrowseItem = Item;
-		BrowseItemComponent->SetStaticMesh(Item->GetItemMesh());
-		BrowseItemComponent->SetMaterial(0, Item->MaterialForBrowse);
+		BrowseItemComponent->SetStaticMesh(Item->GetItemMesh());	
 
+		const int32 MaterialSlotsNum = BrowseItemComponent->GetNumMaterials();
+
+		for(int32 i = 0; i < MaterialSlotsNum; ++i)
+		{
+			UMaterialInterface* MaterialForSlot = Item->GetMaterialForBrowse(i);
+
+			if(MaterialForSlot != nullptr)
+			{
+				BrowseItemComponent->SetMaterial(i, MaterialForSlot);
+			}			
+		}
+		
 		float MiddlePoint = Item->MinZoomInBrowseValue + (Item->MaxZoomInBrowseValue - Item->MinZoomInBrowseValue) / 2;
 		BrowseItemComponent->SetRelativeLocation(FVector(MiddlePoint, 0.0f, 0.0f));
 

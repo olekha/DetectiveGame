@@ -27,7 +27,7 @@ public:
 	/**IDGInvestigationSubject implementation - START*/
 	virtual void SetItemForBrowsing(IDGBrowser* ForBrowser) override;
 	virtual void RemoveItemFromBrowsing(IDGBrowser* FromBrowser) override;
-	virtual UMaterialInterface* GetMaterialForBrowse() const override;
+	virtual UMaterialInterface* GetMaterialForBrowse(const uint32 InMaterialSlot) const override;
 	virtual FVector2D GetInBrowserZoomLimits() const override;
 	/**IDGInvestigationSubject - implementation END*/
 
@@ -45,7 +45,7 @@ public:
 	float MaxZoomInBrowseValue = 0.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "View")
-	UMaterialInterface* MaterialForBrowse;
+	TMap<int, UMaterialInterface*> MaterialsForBrowse;
 
 protected:
 

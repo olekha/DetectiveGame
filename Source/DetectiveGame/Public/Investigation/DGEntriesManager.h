@@ -39,6 +39,8 @@ public:
 	void CreateNewInvestigationCase(const TScriptInterface<IDGInvestigationSubject>& InSuspect);
 	void DeleteInvestigationCase(const TScriptInterface<IDGInvestigationSubject>& InSuspect);
 
+	bool IsSubjectAddedToInvestigation(const TSubclassOf<UObject>& InSuspect, const TSubclassOf<UObject>& InInvestigationSubject);
+
 	void DiscoverNewEntry(TSubclassOf<UObject> InNewEntry);
 	bool IsEntryDiscoveredAlready(TSubclassOf<UObject> InEntry) const;
 

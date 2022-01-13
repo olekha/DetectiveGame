@@ -79,28 +79,28 @@ void UDGQuestionBuilderWidget::UpdateListOfInverstigationSubjects(const uint8 In
 
 	if ((InFilter >> static_cast<uint8>(EDGFilterOption::People)) & 1UL)
 	{
-		AddToInvestigationSunjectsContainer(EntriesManager->GetDiscoveredPersons());
+		AddToInvestigationSubjectsContainer(EntriesManager->GetDiscoveredPersons());
 	}
 
 	if ((InFilter >> static_cast<uint8>(EDGFilterOption::Places)) & 1UL)
 	{
-		AddToInvestigationSunjectsContainer(EntriesManager->GetDiscoveredPlaces());
+		AddToInvestigationSubjectsContainer(EntriesManager->GetDiscoveredPlaces());
 	}
 
 	if ((InFilter >> static_cast<uint8>(EDGFilterOption::Events)) & 1UL)
 	{
-		AddToInvestigationSunjectsContainer(EntriesManager->GetDiscoveredEvents());
+		AddToInvestigationSubjectsContainer(EntriesManager->GetDiscoveredEvents());
 	}
 
 	if ((InFilter >> static_cast<uint8>(EDGFilterOption::Items)) & 1UL)
 	{
-		//@okharchenko add in the future
+		AddToInvestigationSubjectsContainer(EntriesManager->GetDiscoveredEvidence());
 	}
 
 	EntriesScrollBox->ScrollToStart();
 }
 
-void UDGQuestionBuilderWidget::AddToInvestigationSunjectsContainer(const TArray<TSubclassOf<UObject>>& InArrayOfSubjects)
+void UDGQuestionBuilderWidget::AddToInvestigationSubjectsContainer(const TArray<TSubclassOf<UObject>>& InArrayOfSubjects)
 {
 	if(InvestigationSuspectButtonClass == nullptr)
 	{
@@ -218,6 +218,11 @@ void UDGQuestionBuilderWidget::UpdateCaseInfo(const TScriptInterface<IDGInvestig
 	for (const TSubclassOf<UObject>& SubjectClass : EntriesManager->GetDiscoveredEvents())
 	{
 		if (SubjectClass == nullptr)
+		{
+			continue;
+		}
+
+		if(EntriesManager->IsSubjectAddedToInvestigation(InvestigationSubjectCase->InvestigationSuspect, SubjectClass))
 		{
 			continue;
 		}
@@ -455,6 +460,20 @@ void UDGQuestionBuilderWidget::UpdateCurrentSelectedSuspects()
 	}
 
 	WeaponSuspectsComboBox->ClearOptions();
+	for (const TSubclassOf<UObject>& SubjectClass : EntriesManager->GetDiscoveredEvidence())
+	{
+		if (SubjectClass == nullptr)
+		{
+			continue;
+		}
+
+		const TScriptInterface<IDGInvestigationSubject> Subject = TScriptInterface<IDGInvestigationSubject>(SubjectClass->GetDefaultObject());
+		if (Subject != nullptr)
+		{
+			WeaponSuspectsComboBox->AddOption(Subject->GetInvestigationSubjectName().ToString(), Subject.GetObject());
+		}
+	}
+
 	DateSuspectsComboBox->ClearOptions();
 
 	OnKillerSelectionChanged("", ESelectInfo::Direct);

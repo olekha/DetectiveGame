@@ -36,7 +36,7 @@ private:
 
 	void UpdateFilterMask();
 	void UpdateListOfInverstigationSubjects(const uint8 InFilter = 0);
-	void AddToInvestigationSunjectsContainer(const TArray<TSubclassOf<UObject>>& InArrayOfSubjects);
+	void AddToInvestigationSubjectsContainer(const TArray<TSubclassOf<UObject>>& InArrayOfSubjects);
 
 	UFUNCTION()
 	void OnInvestigationSubjectWidgetHovered();
@@ -69,9 +69,13 @@ private:
 
 	void UpdateCurrentSelectedSuspects();
 
+	UFUNCTION()
 	void OnKillerSelectionChanged(FString InSelectedItem, ESelectInfo::Type InSelectionType);
+	UFUNCTION()
 	void OnWeaponSelectionChanged(FString InSelectedItem, ESelectInfo::Type InSelectionType);
+	UFUNCTION()
 	void OnPlaceSelectionChanged(FString InSelectedItem, ESelectInfo::Type InSelectionType);
+	UFUNCTION()
 	void OnDateSelectionChanged(FString InSelectedItem, ESelectInfo::Type InSelectionType);
 
 	TScriptInterface<IDGInvestigationSubject> GetSelectedKiller() const;

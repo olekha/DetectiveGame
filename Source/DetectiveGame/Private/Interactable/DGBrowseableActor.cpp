@@ -80,9 +80,14 @@ void ADGBrowseableActor::RemoveItemFromBrowsing(IDGBrowser* FromBrowser)
 	}
 }
 
-UMaterialInterface* ADGBrowseableActor::GetMaterialForBrowse() const 
+UMaterialInterface* ADGBrowseableActor::GetMaterialForBrowse(const uint32 InMaterialSlot) const 
 {	
-	return MaterialForBrowse;
+	if(MaterialsForBrowse.Contains(InMaterialSlot))
+	{
+		return MaterialsForBrowse[InMaterialSlot];
+	}
+
+	return nullptr;
 }
 
 FVector2D ADGBrowseableActor::GetInBrowserZoomLimits() const 

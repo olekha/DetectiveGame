@@ -35,6 +35,34 @@ void UDGEntriesManager::DeleteInvestigationCase(const TScriptInterface<IDGInvest
 	}
 }
 
+bool UDGEntriesManager::IsSubjectAddedToInvestigation(const TSubclassOf<UObject>& InSuspect, const TSubclassOf<UObject>& InInvestigationSubject)
+{
+	const FDGInvestigationSuspectInfo* CaseToCheck = InvestigationCases.FindByPredicate([InSuspect](const FDGInvestigationSuspectInfo& Elem){
+		return Elem.InvestigationSuspect == InSuspect;
+	});
+
+	if(CaseToCheck == nullptr)
+	{
+		return false;
+	}
+	
+	if (CaseToCheck->ConsList.ContainsByPredicate([InInvestigationSubject](const TSubclassOf<UObject>& Elem) {
+		return InInvestigationSubject == Elem;
+	}))
+	{
+		return true;
+	}
+
+	if (CaseToCheck->ProsList.ContainsByPredicate([InInvestigationSubject](const TSubclassOf<UObject>& Elem) {
+		return InInvestigationSubject == Elem;
+	}))
+	{
+		return true;
+	}
+
+	return false;
+}
+
 void UDGEntriesManager::DiscoverNewEntry(TSubclassOf<UObject> InNewEntry)
 {
 	if (InNewEntry == nullptr

@@ -26,7 +26,7 @@ public:
 
 	virtual void RemoveItemFromBrowsing(IDGBrowser* FromBrowser) = 0;
 
-	virtual UMaterialInterface* GetMaterialForBrowse() const = 0;
+	virtual UMaterialInterface* GetMaterialForBrowse(const uint32 InMaterialSlot) const = 0;
 
 	virtual FVector2D GetInBrowserZoomLimits() const = 0;
 };
